@@ -35,6 +35,26 @@ let defaultLegendOptions: LegendOptions = {
   unit: 'bps',
 };
 
+// let defaultTopologyOptions: TopologyOptions = {
+//   point: {
+//     color: AtlasOptions.point.color,
+//     tooltip: {
+//       display: true,
+//       static: AtlasOptions.point.staticTooltip || false,
+//       custom: false,
+//       content: pointHtml,
+//     },
+//   },
+//   line: {
+//     color: AtlasOptions.line.color,
+//     tooltip: {
+//       display: true,
+//       custom: false,
+//       content: lineHtml,
+//     },
+//   },
+// };
+
 let defaultTopologyOptions: TopologyOptions = {
   point: {
     color: AtlasOptions.point.color,
@@ -47,6 +67,7 @@ let defaultTopologyOptions: TopologyOptions = {
   },
   line: {
     color: AtlasOptions.line.color,
+    aggregationType: 'max', // Default to max (highest value)
     tooltip: {
       display: true,
       custom: false,
@@ -161,6 +182,20 @@ export const plugin = new PanelPlugin<SimpleOptions>(AtlasPanel).setPanelOptions
       description: 'Map Incoming Data To Circuits. Please Run the query again to see applied changes.',
       defaultValue: [],
       editor: DataGroupEditor,
+      category: ['Data Settings'],
+    })
+    .addSelect({
+      path: 'topology.line.aggregationType',
+      name: 'Line Data Aggregation',
+      description: 'Choose how to handle multiple data targets assigned to a single line.',
+      defaultValue: 'max',
+      settings: {
+        options: [
+          { value: 'max', label: 'Highest Value (Max)' },
+          { value: 'avg', label: 'Average' },
+          { value: 'sum', label: 'Sum (Total)' },
+        ],
+      },
       category: ['Data Settings'],
     })
     .addCustomEditor({

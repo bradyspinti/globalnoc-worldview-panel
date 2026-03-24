@@ -21,6 +21,20 @@ const getDataTargetCurrentValue = (options: DataMappingOptions): SelectableValue
         description: `Color topology based on lowest \`${options.colorCriteria}\` value between all data aggregate groups`,
       };
       break;
+    case 'chooseAvg':
+      return {
+        value: 'chooseAvg',
+        label: 'Average of Aggregate Group',
+        description: `Color topology based on average \`${options.colorCriteria}\` value between all data aggregate groups`,
+      };
+      break;
+    case 'chooseSum':
+      return {
+        value: 'chooseSum',
+        label: 'Sum of Aggregate Group',
+        description: `Color topology based on sum \`${options.colorCriteria}\` value between all data aggregate groups`,
+      };
+      break;
     default:
       return {
         value: options.dataTarget,
@@ -40,6 +54,16 @@ const getDataTargetValues = (aggregateGroups: DataAggregateGroup[], options: Dat
     {
       value: 'chooseMin',
       label: 'Min of Aggregate Group',
+      description: `Color topology based on lowest \`${options.colorCriteria}\` value between all data aggregate groups`,
+    },
+    {
+      value: 'chooseAvg',
+      label: 'Avg of Aggregate Group',
+      description: `Color topology based on highest \`${options.colorCriteria}\` value between all data aggregate groups`,
+    },
+    {
+      value: 'chooseSum',
+      label: 'Sum of Aggregate Group',
       description: `Color topology based on lowest \`${options.colorCriteria}\` value between all data aggregate groups`,
     },
   ];
