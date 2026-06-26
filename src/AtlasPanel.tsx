@@ -424,6 +424,16 @@ export class AtlasPanel extends Component<Props, AtlasPanelState> {
     atlas.applyData(dataValues);
     this.setDataMappingOptions();
 
+    const legendMin = atlas.legends?.lines?.min;
+    const legendMax = atlas.legends?.lines?.max;
+    for (const t in atlas.topologies) {
+      atlas.topologies[t].lines.forEach((line: any) => {
+        line.min = legendMin;
+        line.max = legendMax;
+        try { line.update('data'); } catch (_) {}
+      });
+    }
+
     if (!dataValues || dataValues.length === 0) { return; }
 
     const selection = options.dataMappings.dataTarget;
