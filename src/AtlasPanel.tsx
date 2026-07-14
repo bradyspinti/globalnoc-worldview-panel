@@ -426,10 +426,45 @@ export class AtlasPanel extends Component<Props, AtlasPanelState> {
 
     const legendMin = atlas.legends?.lines?.min;
     const legendMax = atlas.legends?.lines?.max;
+
     for (const t in atlas.topologies) {
       atlas.topologies[t].lines.forEach((line: any) => {
         line.min = legendMin;
         line.max = legendMax;
+
+        // Compute the color-driving number using the SAME logic as color
+        const dataTarget  = line.dataTarget;
+        const criteria    = line.colorCriteria || 'now';
+        const dv          = line.data?.dataValues;
+        let colorNumber: number | undefined;
+
+        if (dv) {
+          const vals: number[] = Object.keys(dv)
+            .map((k: string) => dv[k][criteria])
+            .filter((v: any) => v != null && !isNaN(v));
+
+          if (vals.length > 0) {
+            if (dataTarget === 'chooseMax') {
+              colorNumber = Math.max(...vals);
+            } else if (dataTarget === 'chooseMin') {
+              colorNumber = Math.min(...vals);
+            } else if (dataTarget === 'chooseAvg') {
+              colorNumber = vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
+            } else if (dataTarget === 'chooseSum') {
+              colorNumber = vals.reduce((a: number, b: number) => a + b, 0);
+            } else if (dv[dataTarget] != null) {
+              // literal group name like "Input" or "Output"
+              colorNumber = dv[dataTarget][criteria];
+            }
+
+            // For chooseAvg/chooseSum inject into line.color before update
+            if (dataTarget === 'chooseAvg' || dataTarget === 'chooseSum') {
+              const color = line.legend?.color(colorNumber, legendMin, legendMax);
+              if (color) { line.color = color; }
+            }
+          }
+        }
+
         try { line.update('data'); } catch (_) {}
       });
     }
@@ -457,49 +492,59 @@ export class AtlasPanel extends Component<Props, AtlasPanelState> {
             const dataTargets: string[] = line.metadata?.data_targets;
             if (!dataTargets || !Array.isArray(dataTargets) || dataTargets.length === 0) { return; }
 
+            // Build inBucket/outBucket exactly as before for raw Input/Output display
             const inBucket:  number[] = [];
             const outBucket: number[] = [];
 
             dataTargets.forEach((targetName: string) => {
               const dv = dataValues.find(d => d.data_target === targetName);
               if (!dv || !dv.values.length) { return; }
-
-              // Latest value = last entry (values sorted ascending)
               const latest = dv.values[dv.values.length - 1]?.[1];
               if (latest === null || latest === undefined) { return; }
-
-              const grp = dv.aggregate_group?.toLowerCase() || '';
-
-              // A target belongs to "in" if its group contains 'in' but not 'out'
-              // (avoids double-counting a group literally named 'input-output')
+              const grp   = dv.aggregate_group?.toLowerCase() || '';
               const isIn  = grp.includes('in')  && !grp.includes('out');
               const isOut = grp.includes('out');
-
               if (isIn)  { inBucket.push(latest); }
               if (isOut) { outBucket.push(latest); }
-
-              // If neither matched (group name doesn't contain in/out),
-              // put it in both so the tooltip at least shows something
-              if (!isIn && !isOut) {
-                inBucket.push(latest);
-                outBucket.push(latest);
-              }
+              if (!isIn && !isOut) { inBucket.push(latest); outBucket.push(latest); }
             });
 
             const inVal  = this.reduceValues(inBucket,  selection);
             const outVal = this.reduceValues(outBucket, selection);
 
+            // Get the color-driving number for this specific line
+            // (computed in the loop above and stored on the line object)
+            const lineDv       = line.data?.dataValues;
+            const lineCriteria = line.colorCriteria || 'now';
+            let colorVal: number | undefined;
+
+            if (lineDv) {
+              const vals: number[] = Object.keys(lineDv)
+                .map((k: string) => lineDv[k][lineCriteria])
+                .filter((v: any) => v != null && !isNaN(v));
+              if (vals.length > 0) {
+                const dt = line.dataTarget;
+                if      (dt === 'chooseMax') { colorVal = Math.max(...vals); }
+                else if (dt === 'chooseMin') { colorVal = Math.min(...vals); }
+                else if (dt === 'chooseAvg') { colorVal = vals.reduce((a: number, b: number) => a + b, 0) / vals.length; }
+                else if (dt === 'chooseSum') { colorVal = vals.reduce((a: number, b: number) => a + b, 0); }
+                else if (lineDv[dt] != null) { colorVal = lineDv[dt][lineCriteria]; }
+              }
+            }
+
             if (line.tooltip && options.topology.line.tooltip.content) {
               line.tooltip.html = options.topology.line.tooltip.content
                 .replace(/\$dataValues\.input\.now/g,  fmt(inVal))
-                .replace(/\$dataValues\.output\.now/g, fmt(outVal));
+                .replace(/\$dataValues\.output\.now/g, fmt(outVal))
+                // New placeholder you can optionally add to tooltip template
+                .replace(/\$dataValues\.color\.value/g, colorVal != null ? fmt(colorVal) : 'N/A');
               line.tooltip.update('html');
             }
           } catch (_) {}
         });
       }
     } catch (_) {}
-  }
+}
 
   createDataDictionary() {
     const { series, request } = this.props.data;
