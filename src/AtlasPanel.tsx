@@ -122,7 +122,8 @@ export class AtlasPanel extends Component<Props, AtlasPanelState> {
 
   setMapViewUpdateListeners() {
     const { atlas } = this.state;
-    atlas.map.on('moveend dragend', () => {
+    atlas.map.on('moveend dragend', (e: any) => {
+      if (!e.originalEvent) { return; } // ignore moves we triggered ourselves via setView()
       const center  = atlas.map.getCenter();
       const mapView = { ...this.props.options.mapView };
       mapView.lat   = center.lat.toFixed(4);
@@ -247,15 +248,7 @@ export class AtlasPanel extends Component<Props, AtlasPanelState> {
     const { atlas }          = this.state;
     const { lat, lng, zoom } = this.props.options.mapView;
 
-    atlas.map.setZoom(zoom);
-
-    const setViewAfterZoom = () => { atlas.map.setView({ lat, lng }); };
-    atlas.map.on('zoomend', setViewAfterZoom);
-    const moveEndListener = () => {
-      atlas.map.off('zoomend', setViewAfterZoom);
-      atlas.map.off('moveend', moveEndListener);
-    };
-    atlas.map.on('moveend', moveEndListener);
+    atlas.map.setView({ lat, lng }, zoom);
   }
 
   setMapTile() {
@@ -428,15 +421,28 @@ export class AtlasPanel extends Component<Props, AtlasPanelState> {
     const legendMax = atlas.legends?.lines?.max;
 
     for (const t in atlas.topologies) {
-      atlas.topologies[t].lines.forEach((line: any) => {
-        line.min = legendMin;
-        line.max = legendMax;
+    atlas.topologies[t].lines.forEach((line: any) => {
+      line.min = legendMin;
+      line.max = legendMax;
 
-        // Compute the color-driving number using the SAME logic as color
-        const dataTarget  = line.dataTarget;
-        const criteria    = line.colorCriteria || 'now';
-        const dv          = line.data?.dataValues;
-        let colorNumber: number | undefined;
+      const lineDataTargets: string[] = line.metadata?.data_targets;
+      const hasCurrentData =
+        Array.isArray(lineDataTargets) &&
+        lineDataTargets.length > 0 &&
+        lineDataTargets.some((target: string) =>
+          dataValues.some((dv) => dv.data_target === target)
+        );
+
+      if (!hasCurrentData) {
+        try { line.hide(); } catch (_) {}
+        return;
+      } else {
+        try { line.show(); } catch (_) {}
+      }
+      const dataTarget  = line.dataTarget;
+      const criteria    = line.colorCriteria || 'now';
+      const dv          = line.data?.dataValues;
+      let colorNumber: number | undefined;
 
         if (dv) {
           const vals: number[] = Object.keys(dv)

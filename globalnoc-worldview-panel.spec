@@ -1,5 +1,5 @@
 Name: globalnoc-worldview-panel
-Version: 1.2.2
+Version: 1.2.5
 Release: 1%{?dist}
 Summary: Network Map Panel For Grafana
 
